@@ -1,3 +1,5 @@
+> **azahar-3ds-accurate:** a fork of Azahar that matches real 3DS hardware where the New Love Plus+ English patch needs it. See [NLPP.md](NLPP.md) for what changed and why.
+
 ![Azahar Emulator](https://azahar-emu.org/resources/images/logo/azahar-name-and-logo.svg)
 
 ![Current Release](https://img.shields.io/github/v/release/azahar-emu/azahar?label=Current%20Release)
