@@ -7,7 +7,9 @@ needs it. Stock Azahar is forgiving in ways hardware is not, so a patch can work
 in the emulator and crash on a console. This fork closes those gaps so crashes
 show up on a PC first.
 
-Base: upstream `7fbe541c0`. Everything NLPP-specific is in the commits on top.
+Base: upstream `7fbe541c0`, the repo's first commit. Branch `upstream` holds
+pristine upstream snapshots; everything NLPP-specific is in the commits on
+`main` above it.
 
 ## Changes
 
@@ -31,13 +33,38 @@ not reported.
 - EngPatcher `tools/smoke_boot_azahar.py --inject name-walk,pane-flag,menu-vt`
 - nlpp-gold-maker `smoke.yml` (boots every published gold bake on the runner)
 
-EngPatcher also keeps these changes as `ab_test/patches/azahar-*.patch`. When
-this fork changes, regenerate them there (see EngPatcher `CLAUDE.md`).
+EngPatcher keeps these changes as `ab_test/patches/azahar-*.patch`, exported
+by its `tools/export_azahar_patches.py` from `git diff $(merge-base main
+upstream)..main`. Its `tests/test_export_azahar_patches.py` fails when they
+drift.
+
+## Rules for agents (hard requirement)
+
+Set by EngPatcher `CLAUDE.md` and `.cursor/rules/azahar-3ds-accurate.mdc`:
+
+- Hardware-accuracy changes to Azahar land here first, as commits on `main`.
+- **Commit only. Never push.** The owner pushes.
+- Then run `python tools/export_azahar_patches.py` in EngPatcher and commit the
+  regenerated patches there.
+- Never commit to `upstream` except a pristine upstream import (below).
+- Never open pull requests or issues on azahar-emu/azahar from this fork.
+  Azahar's [AI-POLICY.md](AI-POLICY.md) bans AI-written contributions of any
+  copyrightable size; code here is not eligible for upstreaming.
 
 ## Updating from upstream
 
+History here starts fresh, so pull upstream in as a snapshot on `upstream`,
+then merge it into `main`:
+
 ```bash
-git remote add upstream https://github.com/azahar-emu/azahar.git   # once
-git fetch upstream
-git rebase upstream/master
+git remote add azahar https://github.com/azahar-emu/azahar.git   # once
+git fetch azahar
+git switch upstream
+git read-tree -u --reset azahar/master   # exact upstream tree, submodules included
+git commit -m "Import upstream $(git rev-parse --short azahar/master)"
+git switch main
+git merge upstream                        # resolve NLPP conflicts here
 ```
+
+Then re-export the patches in EngPatcher and rebuild Azahar
+(`make.ps1 build-azahar`, runner `setup-smoke-runner.sh`).
