@@ -105,7 +105,7 @@ static const char* ExceptionTypeToString(ExceptionType type) {
     }
 }
 
-void LogException(System& system, ExceptionType type) {
+void LogException(System& system, ExceptionType type, std::optional<u32> fault_address, bool write) {
     if (g_ignore_exceptions_for_session) {
         return;
     }
@@ -128,7 +128,14 @@ void LogException(System& system, ExceptionType type) {
         }
     }
 
-    report += fmt::format("Exception Type: {}\n\n", ExceptionTypeToString(type));
+    report += fmt::format("Exception Type: {}\n", ExceptionTypeToString(type));
+    if (fault_address) {
+        // ARM DFSR: section translation fault is status 0b00101. Bit 11 is the write-not-read flag.
+        const u32 dfsr = write ? 0x00000805u : 0x00000005u;
+        report += fmt::format("FAR   0x{:08X}\nDFSR  0x{:08X}  translation fault, section, {}\n",
+                              *fault_address, dfsr, write ? "write" : "read");
+    }
+    report += '\n';
 
     report += "Registers:\n\n";
     report += DumpRegisters(core);

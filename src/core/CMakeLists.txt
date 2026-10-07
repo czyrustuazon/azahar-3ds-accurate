@@ -548,6 +548,9 @@ if ("x86_64" IN_LIST ARCHITECTURE OR "arm64" IN_LIST ARCHITECTURE)
         arm/dynarmic/arm_tick_counts.h
     )
     target_link_libraries(citra_core PRIVATE dynarmic)
+    # arm_dynarmic.cpp emits IR for the NLPP name-walk abort hook.
+    target_include_directories(citra_core PRIVATE
+        ${CMAKE_SOURCE_DIR}/externals/dynarmic/externals/mcl/include)
 endif()
 
 # FastInterp's dispatch loop requires GCC/Clang computed goto; MSVC builds

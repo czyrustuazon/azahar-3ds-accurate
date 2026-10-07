@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include "common/common_types.h"
 
@@ -28,8 +29,11 @@ enum class ExceptionType : u32 {
  *
  * @param system          The emulator system instance.
  * @param type            The type of exception that occurred.
+ * @param fault_address   Guest FAR for a precise data abort, when known.
+ * @param write           True when the aborting access was a store.
  */
-void LogException(System& system, ExceptionType type);
+void LogException(System& system, ExceptionType type,
+                  std::optional<u32> fault_address = std::nullopt, bool write = false);
 
 /**
  * Configures whether exceptions should be ignored for the current session.

@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <dynarmic/interface/A32/a32.h>
 #include "common/common_types.h"
 #include "core/arm/arm_interface.h"
@@ -65,6 +66,7 @@ protected:
 
 private:
     void ServeBreak(int signal);
+    void HandleHalt(Dynarmic::HaltReason hr);
 
     friend class DynarmicUserCallbacks;
     Core::System& system;
@@ -77,6 +79,9 @@ private:
     Core::DynarmicExclusiveMonitor& exclusive_monitor;
 
     Dynarmic::A32::Jit* jit = nullptr;
+    // Set by a guest load/store callback before HaltReason::MemoryAbort.
+    std::optional<u32> data_abort_far;
+    bool data_abort_write = false;
     std::shared_ptr<Memory::PageTable> current_page_table = nullptr;
     std::map<std::shared_ptr<Memory::PageTable>, std::unique_ptr<Dynarmic::A32::Jit>> jits;
 };
