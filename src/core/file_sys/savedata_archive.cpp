@@ -2,8 +2,10 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <cstring>
 #include "common/archives.h"
 #include "common/file_util.h"
+#include "common/logging/log.h"
 #include "core/file_sys/disk_archive.h"
 #include "core/file_sys/errors.h"
 #include "core/file_sys/path_parser.h"
@@ -352,6 +354,26 @@ ResultVal<std::unique_ptr<DirectoryBackend>> SaveDataArchive::OpenDirectory(cons
 u64 SaveDataArchive::GetFreeBytes() const {
     // TODO: Stubbed to return 32MiB
     return 1024 * 1024 * 32;
+}
+
+Result SaveDataArchive::Control(u32 action, u8* input, size_t input_size, u8* output,
+                                size_t output_size) {
+    // ARCHIVE_ACTION_COMMIT_SAVE_DATA — host IO is already durable; still treat
+    // this as a real commit so callers (NLPP Delete Save Data) see success on
+    // the guest thread after FS_USER unmaps the IPC buffers.
+    if (action == 0) {
+        LOG_INFO(Service_FS, "COMMIT_SAVE_DATA archive={} in={} out={}", GetName(), input_size,
+                 output_size);
+        if (output_size != 0 && output != nullptr) {
+            std::memset(output, 0, output_size);
+        }
+        return ResultSuccess;
+    }
+
+    LOG_WARNING(Service_FS,
+                "(STUBBED) Control archive={} action={:08X} input_size={:08X} output_size={:08X}",
+                GetName(), action, input_size, output_size);
+    return ResultSuccess;
 }
 
 } // namespace FileSys

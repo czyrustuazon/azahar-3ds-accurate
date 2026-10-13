@@ -353,6 +353,7 @@ void File::Flush(Kernel::HLERequestContext& ctx) {
         IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
         backend->Flush();
         rb.Push(ResultSuccess);
+        return;
     }
 
     ctx.RunAsync(

@@ -16,6 +16,8 @@ pristine upstream snapshots; everything NLPP-specific is in the commits on
 | Change | Why |
 |--------|-----|
 | `File::OpenLinkFile` clones the source session (offset, size, subfile) and keeps the shared backend open while a clone lives | Stock Azahar returned the whole extra-data blob for the clone. NLPP read it as a small record and heap-walked garbage (Communications / Game Start hang). Hardware clones the handle correctly. |
+| `FS_USER::ControlArchive` commits on the guest thread and replies with both mapped buffers; `SaveDataArchive::Control(0)` is a real COMMIT | Stock Azahar ran COMMIT async under `async_fs_operations` and replied with `MakeBuilder(1,0)`, so the buffers were never unmapped. NLPP Delete Save Data then hit `SendSyncRequest` → `InvalidHandle` mid-fade (transparent UI softlock). |
+| `File::Flush` returns after the sync path | Missing `return` fell through into a second async reply when `async_fs_operations` was off. |
 | Exception reports include `FAR` / `DFSR` | Same fields as a Luma3DS ARM11 dump, so emulator and hardware crashes compare directly. |
 | `NLPP_EMU_NAME_WALK_ABORT=1` | Replays Luma dump 2026-10-01 18:36: forces the bad directory offset on the first layout name lookup, then data-aborts the vanilla `ldrh` at `0x644D78`. |
 | `NLPP_EMU_MENU_VT=1` | Replays Luma dump 2026-10-01 19:58: one null object at `0x2EEDA4`. |

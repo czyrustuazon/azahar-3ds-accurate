@@ -737,12 +737,23 @@ void FS_USER::ControlArchive(Kernel::HLERequestContext& ctx) {
     const auto action = rp.Pop<u32>();
     const auto input_size = rp.Pop<u32>();
     const auto output_size = rp.Pop<u32>();
+    auto& input = rp.PopMappedBuffer();
+    auto& output = rp.PopMappedBuffer();
 
-    if (!archives.ArchiveIsSlow(archive_handle) && !Settings::values.async_fs_operations) {
-        auto input = rp.PopMappedBuffer();
-        auto output = rp.PopMappedBuffer();
+    // COMMIT_SAVE_DATA (action 0) must finish on the guest thread: NLPP Delete
+    // Save Data fades while this returns, and an async reply that omits the
+    // mapped-buffer unmap leaves the next SendSyncRequest with InvalidHandle.
+    // Always reply with both buffers (libctru header 0x80D0144 = 4 translate).
+    constexpr u32 ARCHIVE_ACTION_COMMIT_SAVE_DATA = 0;
+    const bool force_sync = action == ARCHIVE_ACTION_COMMIT_SAVE_DATA ||
+                            (!archives.ArchiveIsSlow(archive_handle) &&
+                             !Settings::values.async_fs_operations);
+
+    if (force_sync) {
         std::vector<u8> in_data(input_size);
-        input.Read(in_data.data(), 0, in_data.size());
+        if (input_size != 0) {
+            input.Read(in_data.data(), 0, in_data.size());
+        }
         std::vector<u8> out_data(output_size);
 
         const Result res =
@@ -752,8 +763,10 @@ void FS_USER::ControlArchive(Kernel::HLERequestContext& ctx) {
         if (res.IsSuccess() && output_size != 0) {
             output.Write(out_data.data(), 0, out_data.size());
         }
-        IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
+        IPC::RequestBuilder rb = rp.MakeBuilder(1, 4);
         rb.Push(res);
+        rb.PushMappedBuffer(input);
+        rb.PushMappedBuffer(output);
         return;
     }
 
@@ -774,14 +787,16 @@ void FS_USER::ControlArchive(Kernel::HLERequestContext& ctx) {
     async_data->action = action;
     async_data->in_size = input_size;
     async_data->out_size = output_size;
-    async_data->in_buffer = &rp.PopMappedBuffer();
-    async_data->out_buffer = &rp.PopMappedBuffer();
+    async_data->in_buffer = &input;
+    async_data->out_buffer = &output;
 
     ctx.RunOnThreadWorker(
         fs_async_worker,
         [this, async_data](Kernel::HLERequestContext& ctx) {
             std::vector<u8> in_data(async_data->in_size);
-            async_data->in_buffer->Read(in_data.data(), 0, in_data.size());
+            if (async_data->in_size != 0) {
+                async_data->in_buffer->Read(in_data.data(), 0, in_data.size());
+            }
             async_data->out_data.resize(async_data->out_size);
 
             async_data->res = archives.ControlArchive(
@@ -790,12 +805,14 @@ void FS_USER::ControlArchive(Kernel::HLERequestContext& ctx) {
             return 0;
         },
         [async_data](Kernel::HLERequestContext& ctx) {
-            IPC::RequestBuilder rb(ctx, 1, 0);
             if (async_data->res.IsSuccess() && async_data->out_size != 0) {
                 async_data->out_buffer->Write(async_data->out_data.data(), 0,
                                               async_data->out_data.size());
             }
+            IPC::RequestBuilder rb(ctx, 1, 4);
             rb.Push(async_data->res);
+            rb.PushMappedBuffer(*async_data->in_buffer);
+            rb.PushMappedBuffer(*async_data->out_buffer);
         },
         true);
 }
@@ -906,10 +923,11 @@ void FS_USER::FormatThisUserSaveData(Kernel::HLERequestContext& ctx) {
 
     IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
     ClientSlot* slot = GetSessionData(ctx.Session());
+    LOG_WARNING(Service_FS,
+                "FormatThisUserSaveData program={:016X} blocks={} dirs={} files={}",
+                slot->program_id, block_size, number_directories, number_files);
     rb.Push(archives.FormatArchive(ArchiveIdCode::SaveData, format_info, FileSys::Path(),
                                    slot->program_id, directory_buckets, file_buckets));
-
-    LOG_TRACE(Service_FS, "called");
 }
 
 void FS_USER::GetFreeBytes(Kernel::HLERequestContext& ctx) {

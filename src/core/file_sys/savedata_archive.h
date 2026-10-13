@@ -33,6 +33,8 @@ public:
     Result RenameDirectory(const Path& src_path, const Path& dest_path) const override;
     ResultVal<std::unique_ptr<DirectoryBackend>> OpenDirectory(const Path& path) override;
     u64 GetFreeBytes() const override;
+    Result Control(u32 action, u8* input, size_t input_size, u8* output,
+                   size_t output_size) override;
 
 protected:
     std::string mount_point;
