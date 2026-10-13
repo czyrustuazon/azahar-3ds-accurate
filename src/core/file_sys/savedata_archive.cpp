@@ -358,7 +358,7 @@ u64 SaveDataArchive::GetFreeBytes() const {
 
 Result SaveDataArchive::Control(u32 action, u8* input, size_t input_size, u8* output,
                                 size_t output_size) {
-    // ARCHIVE_ACTION_COMMIT_SAVE_DATA — host IO is already durable; still treat
+    // ARCHIVE_ACTION_COMMIT_SAVE_DATA -- host IO is already durable; still treat
     // this as a real commit so callers (NLPP Delete Save Data) see success on
     // the guest thread after FS_USER unmaps the IPC buffers.
     if (action == 0) {
